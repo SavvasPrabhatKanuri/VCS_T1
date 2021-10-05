@@ -1,552 +1,120 @@
-<project name="SFDCDeployment" default="test" basedir="." xmlns:sf="antlib:com.salesforce">
-
-  <!-- Place build.properties file two directories up from current location -->
-  <!-- enabling you to work in a shared folder with subfolders for each deployment -->
-  <property file="../../build.properties" />
-  <property environment="env" />
-
-  <!-- FUTURE SYNTAX: ant source2target -Dsource=dev -Dtarget=qa -Dversion=3.6 -->
-  <!--
-    <target name="source2target">
-      <antcall target="source2local">
-        <param name="source" value="dev"/>
-        <param name="version" value="${version}"/>
-      </antcall>
-      <antcall target="local2target">
-        <param name="source" value="dev"/>
-        <param name="target" value="qa"/>
-        <param name="version" value="${version}"/>
-      </antcall>
+<project name="Sample usage of Salesforce Ant tasks" default="test" basedir="." xmlns:sf="antlib:com.salesforce">
+	<echo message="Properties File Called"/>
+    <property file="build.properties"/>
+    <property environment="env"/>
+<echo message="Environment Initialized"/>
+    <!-- Setting default value for username, password and session id properties to empty string 
+         so unset values are treated as empty. Without this, ant expressions such as ${sf.username}
+         will be treated literally.
+    -->
+    <condition property="sf.username" value=""> <not> <isset property="sf.username"/> </not> </condition>
+    <condition property="sf.password" value=""> <not> <isset property="sf.password"/> </not> </condition>
+	<echo level="info">Password: ${sf.password}</echo>
+    <condition property="sf.sessionId" value=""> <not> <isset property="sf.sessionId"/> </not> </condition>
+ <condition property="sf.securitytoken" value=""> <not> <isset property="sf.securitytoken"/> </not> </condition>
+	<echo level="info">security Token: ${sf.securitytoken}</echo>
+<echo message="Ant is calling"/>
+    <taskdef resource="com/salesforce/antlib.xml" uri="antlib:com.salesforce">
+        <classpath>
+            <pathelement location="./ant-salesforce.jar" />        	
+        </classpath>
+    </taskdef>
+<echo message="ANT Jar File Called"/>	
+    <!-- Test out deploy and retrieve verbs for package 'mypkg' -->
+    <target name="test">
+	    <echo message="Inside Test target"/>
+      <!-- Upload the contents of the "mypkg" package -->
+      <sf:deploy username="${sf.username}" password="${sf.password}"  sessionId="${sf.sessionId}" serverurl="${sf.serverurl}" maxPoll="${sf.maxPoll}" deployRoot="src" rollbackOnError="true"/>
+     <echo message="Deploy Done"/>
+	    <!-- <mkdir dir="retrieveOutput"/>
+      <sf:retrieve username="${sf.username}" password="${sf.password}" sessionId="${sf.sessionId}" serverurl="${sf.serverurl}" maxPoll="${sf.maxPoll}" retrieveTarget="retrieveOutput" packageNames="MyPkg"/>-->
     </target>
--->
 
-  <scriptdef name="runSpecifiedTests" language="javascript">
-    <attribute name="username"/>
-    <attribute name="password"/>
-    <attribute name="serverurl"/>
-    <![CDATA[
-    		//*** CREATE DEPLOY TASK ****
-		var deployTask = project.createTask('antlib:com.salesforce:deploy');
-		var username = attributes.get("username");
-		var password = attributes.get("password");
-		var serverurl = attributes.get("serverurl");
-		var source = project.getProperty("source");
-		var version = project.getProperty("version");
-		var specifiedTest = project.getProperty("specifiedTests");
-		
-		if(username!=null && password!=null && serverurl!=null && source!=null && version!=null && specifiedTest!=null){
-			deployTask.setUsername(username);
-			deployTask.setPassword(password);
-    	    		deployTask.setServerURL(serverurl);
-    	    		deployTask.setDeployRoot(source + " sprint " + version);
-    	    		deployTask.setTestLevel("RunSpecifiedTests");
-    	    		deployTask.setMaxPoll("5000");
-    	  		deployTask.setPollWaitMillis("20000");
-			
-    			//*** Configure checkOnly ***
-    			if (project.getProperty("checkOnly")=="true"){
-    	  			deployTask.setCheckonly(true);
-    			}
-    			else{
-    	  			deployTask.setCheckonly(false);
-    			}
-			
-    			//*** Prepare list of test classes ***
-    			if (specifiedTest) {
-    				deployTask.setTestLevel('RunSpecifiedTests');
-    				var tests = specifiedTest.split(',');
-				
-  				//*** Prepare runTest tags ****
-  				var runTest = deployTask.getClass().getClassLoader().loadClass("com.salesforce.ant.DeployTask$CodeNameElement");
-  				for (var i = 0; i < tests.length; i++) {
-  	        		var rt = runTest.newInstance();
-  					rt.addText(tests[i]);
-  					deployTask.addRunTest(rt);
-  				}
-			}
-    			//*** Execute deploy task ***
-    			deployTask.execute();
-		}
-    		//**** DONE *****************
-	]]>
-  </scriptdef>
+    <!-- Retrieve an unpackaged set of metadata from your org -->
+    <!-- The file unpackaged/package.xml lists what is to be retrieved -->
+    <target name="retrieveUnpackaged">
+      <mkdir dir="retrieveUnpackaged"/>
+      <!-- Retrieve the contents into another directory -->
+      <sf:retrieve username="${sf.username}" password="${sf.password}" sessionId="${sf.sessionId}" serverurl="${sf.serverurl}" maxPoll="${sf.maxPoll}" retrieveTarget="retrieveUnpackaged" unpackaged="unpackaged/package.xml"/>
+    </target>
 
-  <!-- SYNTAX: ant qa2full -Dversion=3.6    optional: -DcheckOnly=true -DrunAllTests=true-->
-  <target name="qa2full">
-    <antcall target="qa2local">
-      <param name="source" value="qa" />
-      <param name="version" value="${version}" />
-    </antcall>
-    <antcall target="local2full">
-      <param name="source" value="qa" />
-      <param name="version" value="${version}" />
-      <param name="checkOnly" value="${checkOnly}" />
-      <param name="runAllTests" value="${runAllTests}" />
-    </antcall>
-  </target>
+    <!-- Retrieve all the items of a particular metadata type -->
+    <target name="bulkRetrieve">
+      <sf:bulkRetrieve username="${sf.username}" password="${sf.password}" sessionId="${sf.sessionId}" serverurl="${sf.serverurl}" maxPoll="${sf.maxPoll}" metadataType="${sf.metadataType}" retrieveTarget="retrieveUnpackaged"/>
+    </target>
 
-  <!-- SYNTAX: ant full2prodfix -Dversion=3.6    optional: -DcheckOnly=true -DrunAllTests=true-->
-  <target name="full2prodfix">
-    <antcall target="full2local">
-      <param name="source" value="full" />
-      <param name="version" value="${version}" />
-    </antcall>
-    <antcall target="local2prodfix">
-      <param name="source" value="full" />
-      <param name="version" value="${version}" />
-      <param name="checkOnly" value="${checkOnly}" />
-      <param name="runAllTests" value="${runAllTests}" />
-    </antcall>
-  </target>
+    <!-- Retrieve metadata for all the packages specified under packageNames -->
+    <target name="retrievePkg">
+      <sf:retrieve username="${sf.username}" password="${sf.password}" sessionId="${sf.sessionId}" serverurl="${sf.serverurl}" maxPoll="${sf.maxPoll}" retrieveTarget="retrieveOutput" packageNames="${sf.pkgName}"/>
+    </target>
 
-  <!-- SYNTAX: ant itdev2full -Dversion=3.6    optional: -DcheckOnly=true -DrunAllTests=true-->
-  <target name="itdev2full">
-    <antcall target="itdev2local">
-      <param name="source" value="dev" />
-      <param name="version" value="${version}" />
-    </antcall>
-    <antcall target="local2full">
-      <param name="source" value="dev" />
-      <param name="version" value="${version}" />
-      <param name="checkOnly" value="${checkOnly}" />
-      <param name="runAllTests" value="${runAllTests}" />
-    </antcall>
-  </target>
+    <!-- Deploy the unpackaged set of metadata retrieved with retrieveUnpackaged and run tests in this organization's namespace only-->
+    <target name="deployUnpackaged">
+      <sf:deploy username="${sf.username}" password="${sf.password}" sessionId="${sf.sessionId}" serverurl="${sf.serverurl}" maxPoll="${sf.maxPoll}" deployRoot="retrieveUnpackaged" rollbackOnError="true"/>
+    </target>
 
-  <!-- SYNTAX: ant itdev2full-specified-tests -Dversion=3.6 -DspecifiedTests=PresalesRequestHandler_Test    optional: -DcheckOnly=true -DrunAllTests=true-->
-  <target name="itdev2full-specified-tests">
-    <antcall target="itdev2local">
-      <param name="source" value="dev" />
-      <param name="version" value="${version}" />
-    </antcall>
-    <antcall target="local2full-specified-tests">
-      <param name="source" value="dev" />
-      <param name="version" value="${version}" />
-      <param name="checkOnly" value="${checkOnly}" />
-      <param name="specifiedTests" value="${specifiedTests}" />
-    </antcall>
-  </target>
+    <!-- Deploy a zip of metadata files to the org -->
+    <target name="deployZip">
+      <sf:deploy username="${sf.username}" password="${sf.password}" sessionId="${sf.sessionId}" serverurl="${sf.serverurl}" maxPoll="${sf.maxPoll}" zipFile="${sf.zipFile}" pollWaitMillis="1000" rollbackOnError="true"/>
+    </target>
 
-  <!-- SYNTAX: ant dev2qa -Dversion=3.6    optional: -DcheckOnly=true -DrunAllTests=true-->
-  <target name="dev2qa">
-    <antcall target="dev2local">
-      <param name="source" value="dev" />
-      <param name="version" value="${version}" />
-    </antcall>
-    <antcall target="local2qa">
-      <param name="source" value="dev" />
-      <param name="version" value="${version}" />
-      <param name="checkOnly" value="${checkOnly}" />
-      <param name="runAllTests" value="${runAllTests}" />
-    </antcall>
-  </target>
+    <!-- Shows deploying code & running tests for code in directory -->
+    <target name="deployCode">
+      <!-- Upload the contents of the "codepkg" directory, running the tests for just 1 class -->
+      <sf:deploy username="${sf.username}" password="${sf.password}" sessionId="${sf.sessionId}" serverurl="${sf.serverurl}" maxPoll="${sf.maxPoll}" deployRoot="codepkg" testLevel="RunSpecifiedTests" rollbackOnError="true">
+      	 <runTest>SampleDeployClass</runTest> 
+      </sf:deploy>
+    </target>
+	
+	 <!-- Shows deploying code with no TestLevel sepcified -->
+    <target name="deployCodeNoTestLevelSpecified">
+      <sf:deploy username="${sf.username}" password="${sf.password}" sessionId="${sf.sessionId}" serverurl="${sf.serverurl}" maxPoll="${sf.maxPoll}" deployRoot="codepkg" rollbackOnError="true"/>
+    </target>
+	
+	<!-- Shows deploying code and running tests only within the org namespace -->
+	<target name="deployCodeRunLocalTests">
+	  <sf:deploy username="${sf.username}" password="${sf.password}" sessionId="${sf.sessionId}" serverurl="${sf.serverurl}" maxPoll="${sf.maxPoll}" deployRoot="codepkg" rollbackOnError="true"  testlevel="RunLocalTests"/>
+	</target>
+	
+    <!-- Shows removing code; only succeeds if done after deployCode -->
+    <target name="undeployCode">
+      <sf:deploy username="${sf.username}" password="${sf.password}" sessionId="${sf.sessionId}" serverurl="${sf.serverurl}" maxPoll="${sf.maxPoll}" deployRoot="removecodepkg"/>
+    </target>
 
-  <!-- SYNTAX: ant qa2prod -Dversion=3.6    optional: -DcheckOnly=true -DrunAllTests=true-->
-  <target name="qa2prod">
-    <antcall target="qa2local">
-      <param name="source" value="qa" />
-      <param name="version" value="${version}" />
-    </antcall>
-    <antcall target="local2prod">
-      <param name="source" value="qa" />
-      <param name="version" value="${version}" />
-      <param name="checkOnly" value="${checkOnly}" />
-      <param name="runAllTests" value="${runAllTests}" />
-    </antcall>
-  </target>
+    <!-- Shows retrieving code; only succeeds if done after deployCode -->
+    <target name="retrieveCode">
+      <!-- Retrieve the contents listed in the file codepkg/package.xml into the codepkg directory -->
+      <sf:retrieve username="${sf.username}" password="${sf.password}" sessionId="${sf.sessionId}" serverurl="${sf.serverurl}" maxPoll="${sf.maxPoll}" retrieveTarget="codepkg" unpackaged="codepkg/package.xml"/>
+    </target>
 
-  <!-- SYNTAX: ant full2prod -Dversion=3.6    optional: -DcheckOnly=true -DrunAllTests=true-->
-  <target name="full2prod">
-    <antcall target="full2local">
-      <param name="source" value="full" />
-      <param name="version" value="${version}" />
-    </antcall>
-    <antcall target="local2prod">
-      <param name="source" value="full" />
-      <param name="version" value="${version}" />
-      <param name="checkOnly" value="${checkOnly}" />
-      <param name="runAllTests" value="${runAllTests}" />
-    </antcall>
-  </target>
+    <!-- Shows deploying code, running all tests, and running tests (1 of which fails), and logging. -->
+    <target name="deployCodeFailingTest">
+      <!-- Upload the contents of the "codepkg" package, running all tests -->
+      <sf:deploy username="${sf.username}" password="${sf.password}" sessionId="${sf.sessionId}" serverurl="${sf.serverurl}" maxPoll="${sf.maxPoll}" deployRoot="codepkg" testLevel="RunAllTestsInOrg" rollbackOnError="true" logType="Debugonly"/>
+    </target>
 
-  <!-- SYNTAX: ant full2prod-specified-tests -Dversion=3.6 -DspecifiedTests=PresalesRequestHandler_Test   optional: -DcheckOnly=true -DrunAllTests=true-->
-  <target name="full2prod-specified-tests">
-    <antcall target="full2local">
-      <param name="source" value="full" />
-      <param name="version" value="${version}" />
-    </antcall>
-    <antcall target="local2prod-specified-tests">
-      <param name="source" value="full" />
-      <param name="version" value="${version}" />
-      <param name="checkOnly" value="${checkOnly}" />
-      <param name="specifiedTests" value="${specifiedTests}" />
-    </antcall>
-  </target>
+    <!-- Shows check only; never actually saves to the server -->
+    <target name="deployCodeCheckOnly">
+      <sf:deploy username="${sf.username}" password="${sf.password}" sessionId="${sf.sessionId}" serverurl="${sf.serverurl}" maxPoll="${sf.maxPoll}" deployRoot="codepkg" checkOnly="true"/>
+    </target>
+	
+	<!-- Shows quick deployment of recent validation. Set the property sf.recentValidationId to your recent check only deployment Id -->
+	<target name="quickDeploy">
+	  <sf:deployRecentValidation  username="${sf.username}" password="${sf.password}" sessionId="${sf.sessionId}" serverurl="${sf.serverurl}" maxPoll="${sf.maxPoll}" recentValidationId="${sf.recentValidationId}"/>
+	</target>
+	
+	<!-- Shows cancel deployment of deploy request either pending or in progress. Set property sf.requestId to Id of pending or in progress deploy request -->
+	<target name="cancelDeploy">
+	  <sf:cancelDeploy  username="${sf.username}" password="${sf.password}" sessionId="${sf.sessionId}" serverurl="${sf.serverurl}" maxPoll="${sf.maxPoll}" requestId="${sf.requestId}"/>
+	</target>
 
-  <!-- SYNTAX: ant prodfix2prod -Dversion=3.6    optional: -DcheckOnly=true -DrunAllTests=true-->
-  <target name="prodfix2prod">
-    <antcall target="prodfix2local">
-      <param name="source" value="prodfix" />
-      <param name="version" value="${version}" />
-    </antcall>
-    <antcall target="local2prod">
-      <param name="source" value="prodfix" />
-      <param name="version" value="${version}" />
-      <param name="checkOnly" value="${checkOnly}" />
-      <param name="runAllTests" value="${runAllTests}" />
-    </antcall>
-  </target>
+	<!-- Retrieve the information of all items of a particular metadata type -->
+    <target name="listMetadata">
+      <sf:listMetadata username="${sf.username}" password="${sf.password}" sessionId="${sf.sessionId}" serverurl="${sf.serverurl}" metadataType="${sf.metadataType}"/>
+    </target>
 
-
-  <!-- SYNTAX: ant itdev2local -Dversion=3.10d -Dsource=dev -->
-  <target name="itdev2local">
-    <mkdir dir="${source} sprint ${version}" />
-    <sf:retrieve
-      username="${it.dev.username}"
-      password="${it.dev.password}"
-      serverurl="https://test.salesforce.com"
-      pollWaitMillis="10000"
-      maxPoll="5000"
-      unpackaged="package-${version}.xml"
-      retrieveTarget="${source} sprint ${version}" />
-  </target>
-
-  <!-- dev2qa commands ****************** -->
-
-  <!-- SYNTAX: ant dev2local -Dversion=3.10d -Dsource=dev -->
-  <target name="dev2local">
-    <mkdir dir="${source} sprint ${version}" />
-    <sf:retrieve
-      username="${cmc.dev.username}"
-      password="${cmc.dev.password}"
-      serverurl="https://test.salesforce.com"
-      pollWaitMillis="10000"
-      maxPoll="5000"
-      unpackaged="package-${version}.xml"
-      retrieveTarget="${source} sprint ${version}" />
-  </target>
-
-  <!-- SYNTAX: ant backup-qa -Dtype=package|destructiveChanges -Dversion=3.6 change for story S-502094 starts-->
-  <target name="backup-qa" depends="check-files-exist" if="${type}.exists">
-    <mkdir dir="qa backup ${type}-${version}" />
-    <sf:retrieve
-      username="${cmc.qa.username}"
-      password="${cmc.qa.password}"
-      serverurl="${sandbox.serverurl}"
-      pollWaitMillis="10000"
-      maxPoll="5000"
-      unpackaged="${type}-${version}.xml"
-      retrieveTarget="qa backup ${type}-${version}" />
-  </target>
-
-  <!-- SYNTAX: ant local2qa -Dversion=3.6 -Dsource=dev    optional: -DcheckOnly=true -DrunAllTests=true -->
-  <target name="local2qa">
-    <antcall target="backup-qa">
-        <param name="version" value="${version}" />
-        <param name="type" value="package" />
-    </antcall>
-    <antcall target="backup-qa">
-        <param name="version" value="${version}" />
-        <param name="type" value="destructiveChanges" />
-    </antcall>
-    <antcall target="copy-destructiveChanges">
-      <param name="version" value="${version}" />
-      <param name="source" value="${source}" />
-    </antcall>
-    <sf:deploy
-      username="${cmc.qa.username}"
-      password="${cmc.qa.password}"
-      serverurl="https://test.salesforce.com"
-      pollWaitMillis="20000"
-      maxPoll="5000"
-      checkOnly="${checkOnly}"
-      runAllTests="${runAllTests}"
-      deployRoot="${source} sprint ${version}"
-    />
-  </target>
-  
-  <!-- SYNTAX: ant local2dev-specified-tests -Dversion=3.6 -Dsource=qa -DspecifiedTests=TestClass1,TestClass2   optional: -DcheckOnly=true -DrunAllTests=true -->
-  <target name="local2qa-specified-tests">
-      <!-- backup qa first -->
-      <antcall target="backup-qa">
-        <param name="version" value="${version}" />
-        <param name="type" value="package" />
-      </antcall>
-      <antcall target="backup-qa">
-        <param name="version" value="${version}" />
-        <param name="type" value="destructiveChanges" />
-      </antcall>
-      <antcall target="copy-destructiveChanges">
-        <param name="version" value="${version}" />
-        <param name="source" value="${source}" />
-      </antcall>
-  	<!-- deploy script -->
-  	<runSpecifiedTests username="${cmc.full.username}" password="${cmc.full.password}" serverurl="${sandbox.serverurl}"/>
-  </target>
-  
-
-  <!-- SYNTAX: ant backup-full -Dtype=package|destructiveChanges -Dversion=3.6 change for story S-502094 starts -->
-  <target name="backup-full" depends="check-files-exist" if="${type}.exists">
-    <mkdir dir="full backup ${type}-${version}" />
-    <sf:retrieve
-      username="${cmc.full.username}"
-      password="${cmc.full.password}"
-      serverurl="${sandbox.serverurl}"
-      pollWaitMillis="10000"
-      maxPoll="5000"
-      unpackaged="${type}-${version}.xml"
-      retrieveTarget="full backup ${type}-${version}" />
-  </target>
-
-  <!-- SYNTAX: ant local2full -Dversion=3.6 -Dsource=dev    optional: -DcheckOnly=true -DrunAllTests=true -->
-  <target name="local2full">
-    <antcall target="backup-full">
-        <param name="version" value="${version}" />
-        <param name="type" value="package" />
-	</antcall>
-    <antcall target="backup-full">
-        <param name="version" value="${version}" />
-        <param name="type" value="destructiveChanges" />
-    </antcall>
-	<antcall target="copy-destructiveChanges">
-      	<param name="version" value="${version}" />
-      	<param name="source" value="${source}" />
-	</antcall>
-    <sf:deploy
-      username="${cmc.full.username}"
-      password="${cmc.full.password}"
-      serverurl="${sandbox.serverurl}"
-      pollWaitMillis="20000"
-      maxPoll="5000"
-      checkOnly="${checkOnly}"
-      runAllTests="${runAllTests}"
-      deployRoot="${source} sprint ${version}"
-    />
-  </target>
-  
-<!-- SYNTAX: ant local2full-specified-tests -Dversion=3.6 -Dsource=qa -DspecifiedTests=TestClass1,TestClass2   optional: -DcheckOnly=true -DrunAllTests=true -->
-<target name="local2full-specified-tests">
-    <!-- backup full first -->
-    <antcall target="backup-full">
-      <param name="version" value="${version}" />
-      <param name="type" value="package" />
-    </antcall>
-    <antcall target="backup-full">
-      <param name="version" value="${version}" />
-      <param name="type" value="destructiveChanges" />
-    </antcall>
-    <antcall target="copy-destructiveChanges">
-      <param name="version" value="${version}" />
-      <param name="source" value="${source}" />
-    </antcall>
-	<!-- deploy script -->
-	<runSpecifiedTests username="${cmc.full.username}" password="${cmc.full.password}" serverurl="${sandbox.serverurl}"/>
-</target>
-
-  <!-- qa2prod commands ****************** -->
-
-  <!-- SYNTAX: ant qa2local -Dversion=3.8 -Dsource=qa -->
-  <target name="qa2local">
-    <mkdir dir="${source} sprint ${version}" />
-    <sf:retrieve
-      username="${cmc.qa.username}"
-      password="${cmc.qa.password}"
-      serverurl="${sandbox.serverurl}"
-      pollWaitMillis="10000"
-      maxPoll="5000"
-      unpackaged="package-${version}.xml"
-      retrieveTarget="${source} sprint ${version}" />
-  </target>
-
-  <!-- SYNTAX: ant full2local -Dversion=3.8 -Dsource=full -->
-  <target name="full2local">
-    <mkdir dir="${source} sprint ${version}" />
-    <sf:retrieve
-      username="${cmc.full.username}"
-      password="${cmc.full.password}"
-      serverurl="${sandbox.serverurl}"
-      pollWaitMillis="10000"
-      maxPoll="5000"
-      unpackaged="package-${version}.xml"
-      retrieveTarget="${source} sprint ${version}" />
-  </target>
-
-  <!-- SYNTAX: ant backup-prod -Dtype=package|destructiveChanges -Dversion=3.6 -->
-  <target name="backup-prod" depends="check-files-exist" if="${type}.exists">
-    <mkdir dir="prod backup ${type}-${version}" />
-    <sf:retrieve
-      username="${cmc.prod.username}"
-      password="${cmc.prod.password}"
-      serverurl="${prod.serverurl}"
-      pollWaitMillis="10000"
-      maxPoll="5000"
-      unpackaged="${type}-${version}.xml"
-      retrieveTarget="prod backup ${type}-${version}" />
-  </target>
-
-  <!-- SYNTAX: ant check-files-exist -Dversion=3.6 -->
-  <target name="check-files-exist">
-    <available
-      file="package-${version}.xml"
-      property="package.exists" />
-    <available
-      file="destructiveChanges-${version}.xml"
-      property="destructiveChanges.exists" />
-  </target>
-
-  <!-- SYNTAX: ant copy-destructiveChanges -Dversion=3.6 -Dsource=full -->
-  <target name="copy-destructiveChanges" depends="check-files-exist" if="destructiveChanges.exists">
-    <copy file="destructiveChanges-${version}.xml" tofile="${source} sprint ${version}/destructiveChanges.xml"/>
-  </target>
-
-  <!-- SYNTAX: ant local2prod -Dversion=3.6 -Dsource=qa    optional: -DcheckOnly=true -DrunAllTests=true -->
-  <target name="local2prod">
-    <!-- backup prod first -->
-    <antcall target="backup-prod">
-      <param name="version" value="${version}" />
-      <param name="type" value="package" />
-    </antcall>
-    <antcall target="backup-prod">
-      <param name="version" value="${version}" />
-      <param name="type" value="destructiveChanges" />
-    </antcall>
-    <antcall target="copy-destructiveChanges">
-      <param name="version" value="${version}" />
-      <param name="source" value="${source}" />
-    </antcall>
-    <sf:deploy
-      username="${cmc.prod.username}"
-      password="${cmc.prod.password}"
-      serverurl="${prod.serverurl}"
-      pollWaitMillis="20000"
-      maxPoll="5000"
-      checkOnly="${checkOnly}"
-      runAllTests="${runAllTests}"
-      deployRoot="${source} sprint ${version}" />
-  </target>
-
-  <!-- SYNTAX: ant local2prod-specified-tests -Dversion=3.6 -Dsource=qa -DspecifiedTests=TestClass1,TestClass2   optional: -DcheckOnly=true -DrunAllTests=true -->
-  <target name="local2prod-specified-tests">
-      <!-- backup prod first -->
-      <antcall target="backup-prod">
-        <param name="version" value="${version}" />
-        <param name="type" value="package" />
-      </antcall>
-      <antcall target="backup-prod">
-        <param name="version" value="${version}" />
-        <param name="type" value="destructiveChanges" />
-      </antcall>
-      <antcall target="copy-destructiveChanges">
-        <param name="version" value="${version}" />
-        <param name="source" value="${source}" />
-      </antcall>
-  	<!-- deploy script -->
-  	<runSpecifiedTests username="${cmc.prod.username}" password="${cmc.prod.password}" serverurl="${prod.serverurl}"/>
-  </target>
-
-  <!-- prodfix2prod commands ****************** -->
-
-  <!-- SYNTAX: ant prodfix2local -Dversion=3.8 -Dsource=prodfix-->
-  <target name="prodfix2local">
-    <mkdir dir="${source} sprint ${version}" />
-    <sf:retrieve
-      username="${cmc.prodfix.username}"
-      password="${cmc.prodfix.password}"
-      serverurl="${sandbox.serverurl}"
-      pollWaitMillis="10000"
-      maxPoll="5000"
-      unpackaged="package-${version}.xml"
-      retrieveTarget="${source} sprint ${version}" />
-  </target>
-
-  <!-- OTHER RARE commands ****************** -->
-
-  <!-- prodfix2prod commands ****************** -->
-
-  <!-- SYNTAX: ant prod2local -Dversion=3.8 -Dsource=prod-->
-  <target name="prod2local">
-    <mkdir dir="${source} sprint ${version}" />
-    <sf:retrieve
-      username="${cmc.prod.username}"
-      password="${cmc.prod.password}"
-      serverurl="${prod.serverurl}"
-      pollWaitMillis="10000"
-      maxPoll="5000"
-      unpackaged="package-${version}.xml"
-      retrieveTarget="${source} sprint ${version}" />
-  </target>
-
-  <!-- SYNTAX: ant backup-dev -Dtype=package|destructiveChanges -Dversion=3.6 change for story S-502094 starts-->
-  <target name="backup-dev" depends="check-files-exist" if="${type}.exists">
-    <mkdir dir="dev backup ${type}-${version}" />
-    <sf:retrieve
-      username="${cmc.dev.username}"
-      password="${cmc.dev.password}"
-      serverurl="${sandbox.serverurl}"
-      pollWaitMillis="10000"
-      maxPoll="5000"
-      unpackaged="${type}-${version}.xml"
-      retrieveTarget="dev backup ${type}-${version}" />
-  </target>
-
-  <!-- SYNTAX: ant local2dev -Dversion=3.6 -Dsource=full    optional: -DcheckOnly=true -DrunAllTests=true -->
-  <target name="local2dev">
-    <antcall target="backup-dev">
-        <param name="version" value="${version}" />
-        <param name="type" value="package" />
-    </antcall>
-    <antcall target="backup-dev">
-        <param name="version" value="${version}" />
-        <param name="type" value="destructiveChanges" />
-	</antcall>
-    <antcall target="copy-destructiveChanges">
-      <param name="version" value="${version}" />
-      <param name="source" value="${source}" />
-    </antcall>
-    <sf:deploy
-      username="${cmc.dev.username}"
-      password="${cmc.dev.password}"
-      serverurl="${sandbox.serverurl}"
-      pollWaitMillis="20000"
-      maxPoll="5000"
-      checkOnly="${checkOnly}"
-      runAllTests="${runAllTests}"
-      deployRoot="${source} sprint ${version}"
-    />
-  </target>
-  
-  <!-- SYNTAX: ant local2dev-specified-tests -Dversion=3.6 -Dsource=qa -DspecifiedTests=TestClass1,TestClass2   optional: -DcheckOnly=true -DrunAllTests=true -->
-  <target name="local2dev-specified-tests">
-     <!-- backup dev first -->
-     <antcall target="backup-dev">
-       <param name="version" value="${version}" />
-	  <param name="type" value="package" />
-	 </antcall>
-	 <antcall target="backup-dev">
-       <param name="version" value="${version}" />
-       <param name="type" value="destructiveChanges" />
-     </antcall>
-     <antcall target="copy-destructiveChanges">
-       <param name="version" value="${version}" />
-       <param name="source" value="${source}" />
-     </antcall>
-     <!-- deploy script -->
-	 <runSpecifiedTests username="${cmc.dev.username}" password="${cmc.dev.password}" serverurl="${sandbox.serverurl}"/>
-  </target>
-
-  <!-- SYNTAX: ant local2prodfix -Dfolder=XXXXXXXXX    optional: -DcheckOnly=true -DrunAllTests=true -->
-  <target name="local2prodfix">
-    <!-- NOTE: this does not copy destructiveChanges.xml to the folder first -->
-    <sf:deploy
-      username="${cmc.prodfix.username}"
-      password="${cmc.prodfix.password}"
-      serverurl="${sandbox.serverurl}"
-      pollWaitMillis="20000"
-      maxPoll="5000"
-      checkOnly="${checkOnly}"
-      runAllTests="${runAllTests}"
-      deployRoot="${folder}">
-    </sf:deploy>
-  </target>
-  
+	<!-- Retrieve the information on all supported metadata type -->
+    <target name="describeMetadata">
+      <sf:describeMetadata username="${sf.username}" password="${sf.password}" sessionId="${sf.sessionId}" serverurl="${sf.serverurl}"/>
+    </target>
 </project>
