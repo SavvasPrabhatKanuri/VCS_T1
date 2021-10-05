@@ -38,11 +38,11 @@
 <!--Deployment Configuration Start-->
 <!-- Shows deploying code with no TestLevel sepcified -->
     <target name="deployCodeNoTestLevelSpecified">
-      <sf:deploy username="${dest.username}" password="${dest.password}" serverurl="${dest.serverurl}" maxPoll="${dest.maxPoll}" deployRoot="src" rollbackOnError="true"/>
+      <sf:deploy username="${dest.username}" password="${dest.password}" serverurl="${dest.serverurl}" maxPoll="${dest.maxPoll}" deployRoot="Folder" rollbackOnError="true"/>
     </target>
 <!-- Shows deploying code and running tests only within the org namespace -->
 	<target name="deployCodeRunLocalTests">
-	  <sf:deploy username="${dest.username}" password="${dest.password}" serverurl="${dest.serverurl}" maxPoll="${dest.maxPoll}" deployRoot="src" rollbackOnError="true"  testlevel="RunLocalTests"/>
+	  <sf:deploy username="${dest.username}" password="${dest.password}" serverurl="${dest.serverurl}" maxPoll="${dest.maxPoll}" deployRoot="Folder" rollbackOnError="true"  testlevel="RunLocalTests"/>
 	</target>
 	<!-- Retrieve an unpackaged set of metadata from your org -->
     <!-- The file unpackaged/package.xml lists what is to be retrieved -->
