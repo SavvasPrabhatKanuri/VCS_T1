@@ -4,5 +4,9 @@
   <members>Version_Control_Test__c</members>
 <name> CustomObject </name>
 </types>
+  <types>
+    <members>Version_Control_Main</members>
+    <name>ApexClass</name>
+  </types>
     <version>51.0</version>
 </Package>
