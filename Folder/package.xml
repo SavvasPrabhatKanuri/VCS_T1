@@ -1,9 +1,5 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Package xmlns="http://soap.sforce.com/2006/04/metadata">
-<types>
-  <members>Version_Control_Test__c</members>
-<name> CustomObject </name>
-</types>
   <types>
     <members>Version_Control_Main</members>
     <name>ApexClass</name>
