@@ -51,4 +51,8 @@
       <!-- Retrieve the contents into another directory -->
       <sf:retrieve username="${source.username}" password="${source.password}" serverurl="${source.serverurl}" maxPoll="${source.maxPoll}" retrieveTarget="Folder" unpackaged="Folder/package.xml"/>
     </target>
+    <target name="retrieveCode">
+      <!-- Retrieve the contents listed in the file codepkg/package.xml into the codepkg directory -->
+      <sf:retrieve username="${source.username}" password="${source.password}"  serverurl="${source.serverurl}" maxPoll="${source.maxPoll}" retrieveTarget="Folder" unpackaged="Folder/package.xml"/>
+    </target>
 </project>
