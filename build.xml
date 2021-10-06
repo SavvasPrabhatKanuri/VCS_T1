@@ -31,7 +31,7 @@
 <!--Ant Setup End-->
 <!--Retrieve Configuration Start-->
     <!-- Shows retrieving code; only succeeds if done after deployCode -->
-    <target name="retrieveCode">
+    <target name="retrieveCode_old">
     <!-- Retrieve the contents listed in the file codepkg/package.xml into the codepkg directory -->
      <sf:retrieve username="${dest.username}" password="${dest.password}" serverurl="${dest.serverurl}" maxPoll="${dest.maxPoll}" retrieveTarget="retrievepckg" unpackaged="retrievepckg/package.xml"/>
     </target>
